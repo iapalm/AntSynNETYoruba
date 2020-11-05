@@ -1,7 +1,7 @@
 from itertools import count
 from collections import defaultdict, OrderedDict
 import random
-import cPickle
+import pickle
 import numpy
 from numpy import fromstring, dtype
 import theano
@@ -14,11 +14,11 @@ class Resources():
         """
         Initialize the resources
         """
-        self.term_to_id = cPickle.load(open(resource_prefix + '_term_to_id.p', 'rb'))
-        self.id_to_term = cPickle.load(open(resource_prefix + '_id_to_term.p', 'rb'))
-        self.path_to_id = cPickle.load(open(resource_prefix + '_path_to_id.p', 'rb'))
-        self.id_to_path = cPickle.load(open(resource_prefix + '_id_to_path.p', 'rb'))
-        self.pattern = cPickle.load(open(resource_prefix + '_patterns.p', 'rb'))
+        self.term_to_id = pickle.load(open(resource_prefix + '_term_to_id.p', 'rb'))
+        self.id_to_term = pickle.load(open(resource_prefix + '_id_to_term.p', 'rb'))
+        self.path_to_id = pickle.load(open(resource_prefix + '_path_to_id.p', 'rb'))
+        self.id_to_path = pickle.load(open(resource_prefix + '_id_to_path.p', 'rb'))
+        self.pattern = pickle.load(open(resource_prefix + '_patterns.p', 'rb'))
 
     def get_term_by_id(self, id):
         return self.id_to_term[str(id)]
@@ -72,7 +72,7 @@ def load_data(corpus_prefix, dataset_prefix, embeddings_file=None):
     '''
     Loads the resources
     '''
-    print "Loading dataset..."
+    print("Loading dataset...")
     train_set = load_dataset(dataset_prefix + '.train')
     test_set = load_dataset(dataset_prefix + '.test')
     valid_set = load_dataset(dataset_prefix + '.val')
@@ -87,7 +87,7 @@ def load_data(corpus_prefix, dataset_prefix, embeddings_file=None):
         vocab[kk[0]]
         vocab[kk[1]]
         
-    print 'Initializing word embeddings...' 
+    print('Initializing word embeddings...') 
       
     if embeddings_file is not None:
         vecs, words = load_embeddings(embeddings_file, vocab)    
@@ -96,8 +96,8 @@ def load_data(corpus_prefix, dataset_prefix, embeddings_file=None):
         key_pairs, patterns, lemma, pos, dep, dist = load_patterns(corpus_prefix, dataset_keys) 
         vecs = None
     
-    print 'Number of lemmas: %d, POS tags: %d, dependency labels: %d, distance labels: %d'\
-          %(len(lemma), len(pos), len(dep), len(dist))
+    print('Number of lemmas: %d, POS tags: %d, dependency labels: %d, distance labels: %d' \
+          %(len(lemma), len(pos), len(dep), len(dist)))
 
     X_train = patterns[:len(train_set)]
     X_test = patterns[len(train_set):len(train_set)+len(test_set)]
@@ -137,7 +137,7 @@ def load_patterns(corpus_prefix, dataset_keys, words=None):
     dist['#UNKNOWN#']
 
     # Load the resource (processed corpus)
-    print 'Loading the corpus...'
+    print('Loading the corpus...')
     corpus = Resources(corpus_prefix)
 
     keys = [(corpus.get_id_by_term(str(x)), corpus.get_id_by_term(str(y))) for (x, y) in dataset_keys]
@@ -149,7 +149,7 @@ def load_patterns(corpus_prefix, dataset_keys, words=None):
     patterns = patterns_x_to_y
 
     empty = [dataset_keys[i] for i, path_list in enumerate(patterns) if len(path_list.keys()) == 0]
-    print 'Pairs without patterns:', len(empty), ', Dataset size:', len(dataset_keys)
+    print('Pairs without patterns:', len(empty), ', Dataset size:', len(dataset_keys))
 
     # Get the index for x and y (get a lemma index)
     if words is None:
@@ -242,7 +242,7 @@ def load_embeddings(file_name, vocab):
                 vec = fromstring(f.read(binary_len), dtype=numpy.float32)
                 embs.append(vec)
         else:
-            print "The extension of embeddings file is either .bin or .txt"
+            print("The extension of embeddings file is either .bin or .txt")
     
     # Add the unknown word
     embs_dim = len(embs[1])

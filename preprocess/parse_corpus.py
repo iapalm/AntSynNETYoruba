@@ -1,5 +1,4 @@
 import spacy
-from spacy.en import English
 import networkx as nx
 import argparse
 import gzip
@@ -21,9 +20,9 @@ def main():
     parser.add_argument('-pos', type=str)
     args = parser.parse_args()
     
-    nlp = English()
-    with gzip.open(args.input, 'rb') as fin:
-        with gzip.open(args.input  + '_' + args.pos + '_parsed.gz', 'wb') as fout:
+    nlp = spacy.load("en_core_web_sm")
+    with open(args.input, 'rb') as fin:
+        with open(args.input  + '_' + args.pos + '_parsed.txt', 'wb') as fout:
             para_num = 0
             # Read each paragraph in corpus
             for paragraph in fin:
@@ -31,14 +30,14 @@ def main():
                 paragraph = paragraph.strip()
                 if len(paragraph) == 0: continue
                 para_num += 1
-                print 'Processing para: %d' %para_num
+                print('Processing para: %d' %para_num)
                 # Parse each sentence
-                parsed_para = nlp(unicode(paragraph))
+                parsed_para = nlp(paragraph.decode("utf-8"))
                 for sent in parsed_para.sents:
                     simple_paths = parse_sentence(sent, args.pos)
                     if len(simple_paths) > 0:
-                        print >>fout, '\n'.join(['\t'.join(path) for path in simple_paths])
-    print 'Parsing done.........!'
+                        fout.write('\n'.join(['\t'.join(path) for path in simple_paths]).encode('utf-8')) 
+    print('Parsing done.........!')
 
 def parse_sentence(sent, pos):
     """
@@ -72,7 +71,7 @@ def parse_sentence(sent, pos):
         
     # Creates word pairs across word classes
     word_pairs = [(tokens[x], tokens[y]) for x in range(len(tokens)-1) 
-                  for y in xrange(x+1,len(tokens))]
+                  for y in range(x+1,len(tokens))]
     # Finds dependency paths of word pairs
     simple_paths = build_simple_paths(word_pairs, edges, nodes, pos_dict, dep_dict)
     
@@ -98,7 +97,7 @@ def build_simple_paths(word_pairs, edges, nodes, pos_dict, dep_dict):
 
     return simple_paths
 
-def simple_path((x,y), edges, nodes, pos_dict, dep_dict):
+def simple_path(xy, edges, nodes, pos_dict, dep_dict):
     """
     Returns the simple dependency paths between x and y, using the simple paths \
     in the graph of dependency tree.
@@ -106,6 +105,7 @@ def simple_path((x,y), edges, nodes, pos_dict, dep_dict):
     :param nodes: the nodes of the graph
     :return: the simple paths between x and y in which each node is normalized by lemma/pos/dep/dist
     """
+    x, y = xy
     # Gets edges without indices from edges
     edges_with_idx = [k for k in edges.keys()]
     # Builds graph
@@ -136,7 +136,7 @@ def simple_path_normalization(path, edges, pos_dict, dep_dict):
     if path_len <= MAX_PATH_LEN:
         if path_len == 2:
             x_token, y_token = path[0], path[1]
-            if edges.has_key((path[0],path[1])):
+            if (path[0],path[1]) in edges:
                 x_to_y_path = ['X/' + pos_dict[x_token] + '/' + dep_dict[x_token] + '/' + str(0), 
                                'Y/' + pos_dict[y_token] + '/' + dep_dict[y_token] + '/' + str(1)]
             else:
@@ -171,7 +171,7 @@ def relative_distance(path, edges):
     for idx in range(len(path)-1):
         current_node = path[idx]        
         next_node = path[idx+1]
-        if edges.has_key((current_node,next_node)):
+        if (current_node,next_node) in edges:
             root_idx = idx
             break
     if root_idx == -1:

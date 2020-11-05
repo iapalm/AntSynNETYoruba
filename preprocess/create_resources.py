@@ -1,5 +1,4 @@
-import gzip
-import cPickle
+import pickle
 import argparse
 from collections import defaultdict
 from itertools import count
@@ -28,21 +27,23 @@ def main():
     resource_prefix = args.prefix
     
     # Load the frequent paths
-    with gzip.open(frequent_paths_file, 'rb') as f:
+    with open(frequent_paths_file, 'r') as f:
         frequent_paths = set([line.strip() for line in f])
-    print 'The number of frequent paths: %d' %len(frequent_paths)
+    print(frequent_paths)
+    print('The number of frequent paths: %d' %len(frequent_paths))
     
     paths = list(set(frequent_paths))
-    left = defaultdict(count(0).next)
-    right = defaultdict(count(0).next)
+    left = defaultdict(lambda: next(count(0)))
+    right = defaultdict(lambda: next(count(0)))
     # Load the corpus
-    with gzip.open(triplets_file, 'rb') as f:
+    with open(triplets_file, 'rb') as f:
         for line in f:
+            line = line.decode("utf-8")
             if len(line.strip().split('\t'))==3:
                 l, r, p = line.strip().split('\t')
                 left[l]
                 right[r]
-    print 'Read triples successfully!'
+    print('Read triples successfully!')
           
     entities = list(set(left.keys()).union(set(right.keys())))
     term_to_id = { t : i for i, t in enumerate(entities) }
@@ -52,27 +53,27 @@ def main():
     term_to_id_db = {}
     id_to_term_db = {}
     
-    for term, id in term_to_id.iteritems():
+    for term, id in term_to_id.items():
         id, term = str(id), str(term)
         term_to_id_db[term] = id
         id_to_term_db[id] = term
     
-    cPickle.dump(term_to_id_db, open(resource_prefix + '_term_to_id.p', 'wb'))
-    cPickle.dump(id_to_term_db, open(resource_prefix + '_id_to_term.p', 'wb'))       
-    print 'Created term databases...'
+    pickle.dump(term_to_id_db, open(resource_prefix + '_term_to_id.p', 'wb'))
+    pickle.dump(id_to_term_db, open(resource_prefix + '_id_to_term.p', 'wb'))       
+    print('Created term databases...')
 
     # Paths
     path_to_id_db = {}
     id_to_path_db = {}
     
-    for path, id in path_to_id.iteritems():
+    for path, id in path_to_id.items():
         id, path = str(id), str(path)
         path_to_id_db[path] = id
         id_to_path_db[id] = path
         
-    cPickle.dump(path_to_id_db, open(resource_prefix + '_path_to_id.p', 'wb'))
-    cPickle.dump(id_to_path_db, open(resource_prefix + '_id_to_path.p', 'wb'))
-    print 'Created path databases...'
+    pickle.dump(path_to_id_db, open(resource_prefix + '_path_to_id.p', 'wb'))
+    pickle.dump(id_to_path_db, open(resource_prefix + '_id_to_path.p', 'wb'))
+    print('Created path databases...')
     
     # Relations
     patterns_db = {}
@@ -80,14 +81,14 @@ def main():
 
     # Load the triplets file
     edges = defaultdict(lambda : defaultdict(lambda : defaultdict(int)))
-    print 'Creating patterns.... '
+    print('Creating patterns.... ')
     paths = set(paths)
-    with gzip.open(triplets_file) as f:
+    with open(triplets_file) as f:
         for line in f:
             try:
                 x, y, path = line.strip().split('\t')
             except:
-                print line
+                print(line)
                 continue
 
             # Frequent path
@@ -98,15 +99,15 @@ def main():
 
             num_line += 1
             if num_line % 1000000 == 0:
-                print 'Processed ', num_line, ' lines.'
+                print('Processed ', num_line, ' lines.')
 
     for x in edges.keys():
         for y in edges[x].keys():
             patterns_db[str(x) + '###' + str(y)] = ','.join(
-                [':'.join((str(p), str(val))) for (p, val) in edges[x][y].iteritems()])
+                [':'.join((str(p), str(val))) for (p, val) in edges[x][y].items()])
     
-    cPickle.dump(patterns_db, open(resource_prefix + '_patterns.p', 'wb'))
-    print 'Done.............!'
+    pickle.dump(patterns_db, open(resource_prefix + '_patterns.p', 'wb'))
+    print('Done.............!')
 
 if __name__ == '__main__':
     main()
