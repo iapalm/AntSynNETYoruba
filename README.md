@@ -23,6 +23,22 @@ in which:
 - ```<model_name>```: 1 for training the combined model or 0 for training the pattern-based model
 - ```<iteration>```: the number of epoch
 
+### Ian's Notes
+
+How to set the repo up:
+1. Clone repo
+2. Download GLoVe word embeddings and unzip (I downloaded the Wiki embeddings from https://nlp.stanford.edu/projects/glove/, it's about 1 GB when unzipped)
+3. Copy the text file of the corpus you want to use into the project directory
+4. `python preprocess/parse_corpus.py -input kjv_medium.txt -pos NN` (`pos` can be NN for noun pairs, JJ for adjective pairs, or VN for verb pairs)
+5. `sort -u corpus_NN_parsed.txt | cut -f3 -d$'\t' > paths`
+6. `awk -F$'\t' '{a[$1]++; if (a[$1] == 5) print $1}' paths > frequent_paths`
+7. `python preprocess\create_dataset.py -input corpus_NN_parsed.txt`
+8. `python train_ant_syn_net.py -corpus corpus -data dataset/noun-pairs -emb glove.6B/glove.6B.50d.txt -model 0 -iter 10`
+
+
+
+
+
 ### Reference
 ```
 @InProceedings{nguyen:2017:ant_syn_net

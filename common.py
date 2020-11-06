@@ -27,10 +27,10 @@ class Resources():
         return self.id_to_path[str(id)]
 
     def get_id_by_term(self, term):
-        return int(self.term_to_id[term]) if self.term_to_id.has_key(term) else -1
+        return int(self.term_to_id[term]) if term in self.term_to_id else -1
 
     def get_id_by_path(self, path):
-        return int(self.path_to_id[path]) if self.path_to_id.has_key(path) else -1
+        return int(self.path_to_id[path]) if path in self.path_to_id else -1
 
     def get_patterns(self, x, y):
         """
@@ -38,7 +38,7 @@ class Resources():
         """
         pattern_dict = {}
         key = str(x) + '###' + str(y)
-        path_str = self.pattern[key] if self.pattern.has_key(key) else ''
+        path_str = self.pattern[key] if key in self.pattern else ''
 
         if len(path_str) > 0:
             paths = [tuple(map(int, p.split(':'))) for p in path_str.split(',')]
@@ -80,12 +80,12 @@ def load_data(corpus_prefix, dataset_prefix, embeddings_file=None):
     y_test = [int(test_set[key]) for key in test_set.keys()]
     y_valid = [int(valid_set[key]) for key in valid_set.keys()]
     
-    dataset_keys = train_set.keys() + test_set.keys() + valid_set.keys()
+    dataset_keys = list(train_set.keys()) + list(test_set.keys()) + list(valid_set.keys())
     
     vocab = OrderedDict()
     for kk in dataset_keys:
-        vocab[kk[0]]
-        vocab[kk[1]]
+        vocab[kk[0]] = 1
+        vocab[kk[1]] = 1
         
     print('Initializing word embeddings...') 
       
@@ -128,9 +128,12 @@ def load_patterns(corpus_prefix, dataset_keys, words=None):
         lemma = words
         pre_trained_embs = True
         
-    pos = defaultdict(count(0).next)
-    dep = defaultdict(count(0).next)
-    dist = defaultdict(count(0).next)
+    poscount = count(0)
+    depcount = count(0)
+    distcount = count(0)
+    pos = defaultdict(lambda: next(poscount))
+    dep = defaultdict(lambda: next(depcount))
+    dist = defaultdict(lambda: next(distcount))
     
     pos['#UNKNOWN#']
     dep['#UNKNOWN#']
@@ -142,9 +145,9 @@ def load_patterns(corpus_prefix, dataset_keys, words=None):
 
     keys = [(corpus.get_id_by_term(str(x)), corpus.get_id_by_term(str(y))) for (x, y) in dataset_keys]
     patterns_x_to_y = [{ vectorize_path(path, lemma, pos, dep, dist, pre_trained_embs) : count
-                      for path, count in get_patterns(corpus, x_id, y_id).iteritems() }
+                      for path, count in get_patterns(corpus, x_id, y_id).items() }
                     for (x_id, y_id) in keys]
-    patterns_x_to_y = [ { p : c for p, c in patterns_x_to_y[i].iteritems() if p is not None } for i in range(len(keys)) ]
+    patterns_x_to_y = [ { p : c for p, c in patterns_x_to_y[i].items() if p is not None } for i in range(len(keys)) ]
 
     patterns = patterns_x_to_y
 
@@ -164,7 +167,7 @@ def get_patterns(corpus, x, y):
     Get the paths between x and y
     """
     x_to_y_patterns = corpus.get_patterns(x, y)
-    patterns = { corpus.get_path_by_id(path) : count for (path, count) in x_to_y_patterns.iteritems() }
+    patterns = { corpus.get_path_by_id(path) : count for (path, count) in x_to_y_patterns.items() }
     
     return patterns
 
@@ -251,7 +254,7 @@ def load_embeddings(file_name, vocab):
         if word not in words:
             words.append(word)
             unk_vec = numpy.random.uniform(-0.25,0.25,embs_dim)
-            embs = numpy.vstack(embs, unk_vec)
+            embs = numpy.vstack((embs, unk_vec))
              
     UNKNOWN_WORD = numpy.random.uniform(-0.25,0.25,embs_dim)
     wv = numpy.vstack((UNKNOWN_WORD, embs))
@@ -263,8 +266,8 @@ def load_embeddings(file_name, vocab):
 
 def to_unicode(text, encoding='utf8', errors='strict'):
     """Convert a string (bytestring in `encoding` or unicode), to unicode."""
-    if isinstance(text, unicode):
+    if isinstance(text, str):
         return text
     else:
-        return unicode(text, encoding=encoding, errors=errors)
+        return text.decode(encoding, errors=errors)
     

@@ -33,8 +33,10 @@ def main():
     print('The number of frequent paths: %d' %len(frequent_paths))
     
     paths = list(set(frequent_paths))
-    left = defaultdict(lambda: next(count(0)))
-    right = defaultdict(lambda: next(count(0)))
+    lcount = count(0)
+    rcount = count(0)
+    left = defaultdict(lambda: next(lcount))
+    right = defaultdict(lambda: next(rcount))
     # Load the corpus
     with open(triplets_file, 'rb') as f:
         for line in f:
