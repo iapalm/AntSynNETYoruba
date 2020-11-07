@@ -4,6 +4,10 @@ from collections import OrderedDict
 import sys
 import time
 import numpy
+
+import os
+os.environ["THEANO_FLAGS"] = "mode=FAST_RUN,device=cuda,floatX=float32"
+
 import theano
 from theano import config
 import theano.tensor as tensor
@@ -585,6 +589,7 @@ def AntSynNET(
             for train_idx in kf_train:
                 instance = X_train[train_idx]
                 l, p, g, d, mask, c = preprocess_instance(instance)
+                
                 source_term, target_term = train_key_pairs[train_idx]
                 label = [y_train[train_idx]]
                 
@@ -595,14 +600,13 @@ def AntSynNET(
                     cost = f_grad_shared(l, p, g, d, mask, c, source_term, target_term, label)
                 else:
                     cost = f_grad_shared(l, p, g, d, mask, c, label)
-                    
+                
                 f_update(lrate)
 
                 set_zero_lemma(zero_lemma)
                 set_zero_pos(zero_pos)
                 set_zero_dep(zero_dep)
                 set_zero_dist(zero_dist)
-                                                          
                 dispLoss += cost
                 n_samples += 1
 
