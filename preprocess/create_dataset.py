@@ -28,14 +28,14 @@ def main():
     min_occurrences = args.min
     
     # Load the resource (processed corpus)
-    print 'Loading the corpus...'
+    print('Loading the corpus...')
     corpus = Resources(corpus_prefix)
     
-    print 'Loading the dataset...'
+    print(Loading the dataset...')
     pos_pairs = load_dataset(pos_file)
     neg_pairs = load_dataset(neg_file)
     
-    print 'Filtering out word-pairs...'
+    print('Filtering out word-pairs...')
     filtered_pos_pairs = filter_word_pairs(corpus, pos_pairs.keys(), min_occurrences)
     filtered_neg_pairs = filter_word_pairs(corpus, neg_pairs.keys(), min_occurrences)
     
