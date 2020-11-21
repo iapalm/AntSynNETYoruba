@@ -2,6 +2,7 @@ import spacy
 import networkx as nx
 import argparse
 import gzip
+import numpy as np
 
 MAX_PATH_LEN = 11
 
@@ -17,27 +18,75 @@ def main():
     """
     parser = argparse.ArgumentParser()
     parser.add_argument('-input', type=str)
-    parser.add_argument('-pos', type=str)
+    parser.add_argument('-pos', required=False, type=str)
+    parser.add_argument('-dataset', required=False, type=str)
+    parser.add_argument('-triples', type=bool)
     args = parser.parse_args()
     
-    nlp = spacy.load("en_core_web_sm")
-    with open(args.input, 'rb') as fin:
-        with open(args.input  + '_' + args.pos + '_parsed.txt', 'wb') as fout:
-            para_num = 0
-            # Read each paragraph in corpus
-            for paragraph in fin:
-                # Check empty paragraph
-                paragraph = paragraph.strip()
-                if len(paragraph) == 0: continue
-                para_num += 1
-                print('Processing para: %d' %para_num)
-                # Parse each sentence
-                parsed_para = nlp(paragraph.decode("utf-8"))
-                for sent in parsed_para.sents:
-                    simple_paths = parse_sentence(sent, args.pos)
-                    if len(simple_paths) > 0:
-                        fout.write('\n'.join(['\t'.join(path) for path in simple_paths]).encode('utf-8')) 
-    print('Parsing done.........!')
+    if args.triples and args.pos is not None:
+        raise ValueError("POS argument ignored when parsing triple files")
+    elif not args.triples and args.pos is None:
+        raise ValueError("POS argument required when parsing regular corpus")
+    
+    if args.dataset and args.pos is not None:
+        raise ValueError("Dataset argument ignored when parsing regular corpus")
+    elif not args.triples and args.pos is None:
+        raise ValueError("Dataset argument required when parsing triple files")
+    
+    
+    if args.triples is False:
+        nlp = spacy.load("en_core_web_sm")
+        with open(args.input, 'rb') as fin:
+            with open(args.input  + '_' + args.pos + '_parsed.txt', 'wb') as fout:
+                para_num = 0
+                # Read each paragraph in corpus
+                for paragraph in fin:
+                    # Check empty paragraph
+                    paragraph = paragraph.strip()
+                    if len(paragraph) == 0: continue
+                    para_num += 1
+                    print('Processing para: %d' %para_num)
+                    # Parse each sentence
+                    parsed_para = nlp(paragraph.decode("utf-8"))
+                    for sent in parsed_para.sents:
+                        simple_paths = parse_sentence(sent, args.pos)
+                        if len(simple_paths) > 0:
+                            fout.write('\n'.join(['\t'.join(path) for path in simple_paths]).encode('utf-8')) 
+        print('Parsing done.........!')
+    else:
+        nlp = spacy.load("en_core_web_sm")
+        dataset = []
+        with open(args.input, 'rb') as fin:
+            with open(args.input  + '_triples_parsed.txt', 'wb') as fout:
+                para_num = 0
+                # Read each paragraph in corpus
+                for triple in fin:
+                    # Check empty paragraph
+                    triple = triple.decode("utf-8").strip().split("\t")
+                    if len(triple) == 0: continue
+                    is_ant, word1, word2, sentence = triple
+                    para_num += 1
+                    print('Processing para: %d' %para_num)
+                    # Parse each sentence
+                    dataset.append('\t'.join((word1, word2, is_ant)))
+                    parsed_para = nlp(sentence)
+                    for pos in ("NN", "JJ", "VB"):
+                        for sent in parsed_para.sents:
+                            simple_paths = parse_sentence(sent, pos)
+                            if len(simple_paths) > 0:
+                                fout.write('\n'.join(['\t'.join(path) for path in simple_paths]).encode('utf-8'))
+        np.random.shuffle(dataset)
+        train_data = dataset[:int(len(dataset) * 0.7)]
+        val_data = dataset[int(len(dataset) * 0.7):int(len(dataset) * 0.85)]
+        test_data = dataset[int(len(dataset) * 0.85):]
+        for data, data_file in ((train_data, args.dataset + '.train'), (val_data, args.dataset + '.val'), (test_data, args.dataset + '.test')):
+            with open(data_file, 'w+') as fout:
+                for triple in data:
+                    fout.write(triple + "\n")
+            
+            
+        print('Parsing done.........!')
+        
 
 def parse_sentence(sent, pos):
     """

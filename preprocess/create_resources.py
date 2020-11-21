@@ -29,7 +29,7 @@ def main():
     # Load the frequent paths
     with open(frequent_paths_file, 'r') as f:
         frequent_paths = set([line.strip() for line in f])
-    print(frequent_paths)
+    
     print('The number of frequent paths: %d' %len(frequent_paths))
     
     paths = list(set(frequent_paths))

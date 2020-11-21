@@ -7,6 +7,7 @@ import numpy
 
 import os
 os.environ["THEANO_FLAGS"] = "mode=FAST_RUN,device=cuda,floatX=float32"
+#os.environ["THEANO_FLAGS"] = "mode=FAST_RUN,device=cuda,floatX=float32,dnn.base_path=C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v10.1"
 
 import theano
 from theano import config
@@ -357,7 +358,10 @@ def pred_error(f_pred, preprocess_data, data, iterator, pair_vectors=None):
     preds = []
     targets = []
     for valid_index in iterator:
-        l, p, g, d, mask, c = preprocess_data(data[0][valid_index])
+        instance = data[0][valid_index]
+        if len(instance.keys()) == 0:
+            continue
+        l, p, g, d, mask, c = preprocess_data(instance)
         if pair_vectors is not None:
             source_term, target_term = pair_vectors[valid_index]
             pred = f_pred(l, p, g, d, mask, c, source_term, target_term)
@@ -378,7 +382,10 @@ def predict(f_pred, preprocess_data, data, iterator, pair_vectors=None):
     preds = []
     targets = []
     for valid_index in iterator:
-        l, p, g, d, mask, c = preprocess_data(data[0][valid_index])
+        instance = data[0][valid_index]
+        if len(instance.keys()) == 0:
+            continue
+        l, p, g, d, mask, c = preprocess_data(instance)
         if pair_vectors is not None:
             source_term, target_term = pair_vectors[valid_index]
             pred = f_pred(l, p, g, d, mask, c, source_term, target_term)
@@ -514,7 +521,7 @@ def AntSynNET(
 
     if model_options['use_dropout']:
         proj = dropout_layer(proj, use_noise, trng)
-
+    
     proj = tensor.dot(tensor.cast(c, 'float32'), proj)
     proj = tensor.sum(proj,axis=0) / tensor.sum(c).astype(config.floatX)
     
@@ -588,6 +595,10 @@ def AntSynNET(
                 
             for train_idx in kf_train:
                 instance = X_train[train_idx]
+                
+                if len(instance.keys()) == 0:
+                    continue
+                
                 l, p, g, d, mask, c = preprocess_instance(instance)
                 
                 source_term, target_term = train_key_pairs[train_idx]
@@ -602,7 +613,7 @@ def AntSynNET(
                     cost = f_grad_shared(l, p, g, d, mask, c, label)
                 
                 f_update(lrate)
-
+                
                 set_zero_lemma(zero_lemma)
                 set_zero_pos(zero_pos)
                 set_zero_dep(zero_dep)
@@ -622,7 +633,9 @@ def AntSynNET(
             print('Seen %d samples' % n_samples)
 
     except KeyboardInterrupt:
-        print("Training interupted")
+        print("Training interrupted")
+    except:
+        print("Something went wrong :(")
         
     use_noise.set_value(0.)
     if model_options['model']==1:
