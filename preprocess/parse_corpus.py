@@ -3,6 +3,8 @@ import networkx as nx
 import argparse
 import gzip
 import numpy as np
+from ufal.udpipe import Model, Pipeline, ProcessingError
+import conllu
 
 MAX_PATH_LEN = 11
 
@@ -21,6 +23,7 @@ def main():
     parser.add_argument('-pos', required=False, type=str)
     parser.add_argument('-dataset', required=False, type=str)
     parser.add_argument('-triples', type=bool)
+    parser.add_argument('-lang', type=str)
     args = parser.parse_args()
     
     if args.triples and args.pos is not None:
@@ -33,28 +36,65 @@ def main():
     elif not args.triples and args.pos is None:
         raise ValueError("Dataset argument required when parsing triple files")
     
-    
-    if args.triples is False:
-        nlp = spacy.load("en_core_web_sm")
-        with open(args.input, 'rb') as fin:
-            with open(args.input  + '_' + args.pos + '_parsed.txt', 'wb') as fout:
-                para_num = 0
-                # Read each paragraph in corpus
-                for paragraph in fin:
-                    # Check empty paragraph
-                    paragraph = paragraph.strip()
-                    if len(paragraph) == 0: continue
-                    para_num += 1
-                    print('Processing para: %d' %para_num)
-                    # Parse each sentence
-                    parsed_para = nlp(paragraph.decode("utf-8"))
-                    for sent in parsed_para.sents:
-                        simple_paths = parse_sentence(sent, args.pos)
-                        if len(simple_paths) > 0:
-                            fout.write('\n'.join(['\t'.join(path) for path in simple_paths]).encode('utf-8')) 
-        print('Parsing done.........!')
+    if args.lang == 'en':
+        if args.triples is False:
+            nlp = spacy.load("en_core_web_sm")
+            with open(args.input, 'rb') as fin:
+                with open(args.input  + '_' + args.pos + '_parsed.txt', 'wb') as fout:
+                    para_num = 0
+                    # Read each paragraph in corpus
+                    for paragraph in fin:
+                        # Check empty paragraph
+                        paragraph = paragraph.strip()
+                        if len(paragraph) == 0: continue
+                        para_num += 1
+                        print('Processing para: %d' %para_num)
+                        # Parse each sentence
+                        parsed_para = nlp(paragraph.decode("utf-8"))
+                        for sent in parsed_para.sents:
+                            simple_paths = parse_sentence(sent, args.pos)
+                            if len(simple_paths) > 0:
+                                fout.write('\n'.join(['\t'.join(path) for path in simple_paths]).encode('utf-8')) 
+            print('Parsing done.........!')
+        else:
+            nlp = spacy.load("en_core_web_sm")
+            dataset = []
+            with open(args.input, 'rb') as fin:
+                with open(args.input  + '_triples_parsed.txt', 'wb') as fout:
+                    para_num = 0
+                    # Read each paragraph in corpus
+                    for triple in fin:
+                        # Check empty paragraph
+                        triple = triple.decode("utf-8").strip().split("\t")
+                        if len(triple) == 0: continue
+                        is_ant, word1, word2, sentence = triple
+                        para_num += 1
+                        print('Processing para: %d' %para_num)
+                        # Parse each sentence
+                        dataset.append('\t'.join((word1, word2, is_ant)))
+                        parsed_para = nlp(sentence)
+                        for pos in ("NN", "JJ", "VB"):
+                            for sent in parsed_para.sents:
+                                simple_paths = parse_sentence(sent, pos)
+                                if len(simple_paths) > 0:
+                                    fout.write('\n'.join(['\t'.join(path) for path in simple_paths]).encode('utf-8'))
+                
+                
+            np.random.shuffle(dataset)
+            train_data = dataset[:int(len(dataset) * 0.7)]
+            val_data = dataset[int(len(dataset) * 0.7):int(len(dataset) * 0.85)]
+            test_data = dataset[int(len(dataset) * 0.85):]
+            for data, data_file in ((train_data, args.dataset + '.train'), (val_data, args.dataset + '.val'), (test_data, args.dataset + '.test')):
+                with open(data_file, 'w+') as fout:
+                    for triple in data:
+                        fout.write(triple + "\n")
     else:
-        nlp = spacy.load("en_core_web_sm")
+        # yoruba
+        model = Model.load('yoruba.udpipe')
+
+        pipeline = Pipeline(model, 'tokenize', Pipeline.DEFAULT, Pipeline.DEFAULT, 'conllu')
+        error = ProcessingError()
+
         dataset = []
         with open(args.input, 'rb') as fin:
             with open(args.input  + '_triples_parsed.txt', 'wb') as fout:
@@ -69,18 +109,20 @@ def main():
                     print('Processing para: %d' %para_num)
                     # Parse each sentence
                     dataset.append('\t'.join((word1, word2, is_ant)))
-                    parsed_para = nlp(sentence)
-                    for pos in ("NN", "JJ", "VB"):
-                        for sent in parsed_para.sents:
-                            simple_paths = parse_sentence(sent, pos)
-                            if len(simple_paths) > 0:
-                                fout.write('\n'.join(['\t'.join(path) for path in simple_paths]).encode('utf-8'))
+                    parsed_para = pipeline.process(sentence, error)
+                    parsed_para = conllu.parse(parsed_para)
+                    
+                    for pos in ("NOUN", "ADJ", "VERB"):
+                        simple_paths = parse_sentence_yo(parsed_para, pos)
+                        if len(simple_paths) > 0:
+                            fout.write(('\n'.join(['\t'.join(path) for path in simple_paths]) + '\n').encode('utf-8'))
+            
         np.random.shuffle(dataset)
         train_data = dataset[:int(len(dataset) * 0.7)]
         val_data = dataset[int(len(dataset) * 0.7):int(len(dataset) * 0.85)]
         test_data = dataset[int(len(dataset) * 0.85):]
         for data, data_file in ((train_data, args.dataset + '.train'), (val_data, args.dataset + '.val'), (test_data, args.dataset + '.test')):
-            with open(data_file, 'w+') as fout:
+            with open(data_file, 'w+', encoding='utf8') as fout:
                 for triple in data:
                     fout.write(triple + "\n")
             
@@ -113,6 +155,51 @@ def parse_sentence(sent, pos):
         if token.dep_ != 'ROOT': 
             edges[(head_node, node)] = token.dep_ 
             dep_dict[token_with_idx] = token.dep_  
+        else:
+            dep_dict[node] = 'ROOT'
+            
+        nodes.append(node)
+        
+    # Creates word pairs across word classes
+    word_pairs = [(tokens[x], tokens[y]) for x in range(len(tokens)-1) 
+                  for y in range(x+1,len(tokens))]
+    # Finds dependency paths of word pairs
+    simple_paths = build_simple_paths(word_pairs, edges, nodes, pos_dict, dep_dict)
+    
+    return simple_paths
+
+def parse_sentence_yo(parse_data, pos):
+    """
+    Returns simple paths of pairs corresponding to POS
+    :parse_data: results of conllu parse
+    :pos: part-of-speech is used to induce patterns (NN | JJ | VB)
+    """
+    tokens = []
+    edges = {}
+    nodes = []
+    pos_dict = {}
+    dep_dict = {}
+    
+    token_list = parse_data[0]
+    # Get POS tokens
+    for token in token_list:
+        # Adds the index of token to avoid representing many tokens by only one node
+        token_with_idx = '#'.join([token['lemma'], str(token['id'])])
+        if token['upos'] == pos and len(token['form'].strip()) >= 2:
+            tokens.append(token_with_idx) 
+            
+        pos_dict[token_with_idx] = token['upos']
+        # Builds edges and nodes for graph
+        node = '#'.join([token['lemma'], str(token['id'])])
+        
+        if token['deprel'] != 'root':
+            if token['head'] is None:
+                continue
+            head_token = [x for x in token_list if x['id'] == token['head']][0]
+            head_node = '#'.join([head_token['lemma'], str(head_token['id'])])
+        
+            edges[(head_node, node)] = token['deprel']
+            dep_dict[token_with_idx] = token['deprel']
         else:
             dep_dict[node] = 'ROOT'
             

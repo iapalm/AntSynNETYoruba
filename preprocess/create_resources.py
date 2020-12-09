@@ -27,7 +27,7 @@ def main():
     resource_prefix = args.prefix
     
     # Load the frequent paths
-    with open(frequent_paths_file, 'r') as f:
+    with open(frequent_paths_file, 'r', encoding='utf8') as f:
         frequent_paths = set([line.strip() for line in f])
     
     print('The number of frequent paths: %d' %len(frequent_paths))
@@ -85,7 +85,7 @@ def main():
     edges = defaultdict(lambda : defaultdict(lambda : defaultdict(int)))
     print('Creating patterns.... ')
     paths = set(paths)
-    with open(triplets_file) as f:
+    with open(triplets_file, encoding='utf8') as f:
         for line in f:
             try:
                 x, y, path = line.strip().split('\t')

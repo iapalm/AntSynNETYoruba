@@ -76,6 +76,27 @@ def load_data(corpus_prefix, dataset_prefix, embeddings_file=None):
     train_set = load_dataset(dataset_prefix + '.train')
     test_set = load_dataset(dataset_prefix + '.test')
     valid_set = load_dataset(dataset_prefix + '.val')
+    
+#     #all_indices = list()
+#     all_data = dict()
+#     for j in (train_set, test_set, valid_set):
+#         for k, v in j.items():
+#             #all_indices.append(k)
+#             all_data[k] = v
+#     
+#     test_split = 0.1
+#     val_split = 0.15
+#     
+#     n = len(all_data)
+#     all_indices = list(all_data.keys())
+#     
+#     split1 = int((1 - test_split - val_split) * n)
+#     split2 = split1 + int(n * val_split)
+#     
+#     train_set = {k: all_data[k] for k in all_indices[:split1]}
+#     test_set = {k: all_data[k] for k in all_indices[split1:split2]}
+#     valid_set = {k: all_data[k] for k in all_indices[split2:]}
+#     
     y_train = [int(train_set[key]) for key in train_set.keys()]
     y_test = [int(test_set[key]) for key in test_set.keys()]
     y_valid = [int(valid_set[key]) for key in valid_set.keys()]
@@ -200,7 +221,7 @@ def load_dataset(dataset_file):
     """
     Loads the dataset
     """
-    with open(dataset_file, 'r') as fin:
+    with open(dataset_file, 'r', encoding='utf8') as fin:
         lines = [tuple(line.strip().split('\t')) for line in fin]
         random.shuffle(lines)
         dataset = { (x, y) : label for (x, y, label) in lines }
