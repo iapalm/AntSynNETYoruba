@@ -1,7 +1,5 @@
 # -*- coding: UTF-8 -*-
 '''
-Created on Dec 1, 2020
-
 @author: iapalm
 '''
 
